@@ -1,0 +1,33 @@
+import pandas as pd
+from google.cloud import bigtable
+from google.cloud.bigtable import row
+
+# Set up Bigtable client
+project_id = "cs-411-hw2 "  
+instance_id = "ev-bigtable"
+table_id = "ev-population"
+
+client = bigtable.Client(project=project_id, admin=True)
+instance = client.instance(instance_id)
+table = instance.table(table_id)
+
+df = pd.read_csv("Electric_Vehicle_Population_Data.csv")
+
+df = df.fillna("")
+
+batch = table.mutations_batcher()
+
+for _, row_data in df.iterrows():
+    row_key = str(row_data["DOL Vehicle ID"]).encode()
+
+    bt_row = table.direct_row(row_key)
+
+    bt_row.set_cell("ev_info", "make", row_data["Make"])
+    bt_row.set_cell("ev_info", "model", row_data["Model"])
+    bt_row.set_cell("ev_info", "model year", str(row_data["Model Year"]))
+    bt_row.set_cell("ev_info", "electric range", str(row_data["Electric Range"]))
+    bt_row.set_cell("ev_info", "city", row_data["City"])
+    bt_row.set_cell("ev_info", "county", row_data["County"])
+    bt_row.commit()
+
+print("data loaded")
