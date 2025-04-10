@@ -2,8 +2,7 @@ import pandas as pd
 from google.cloud import bigtable
 from google.cloud.bigtable import row
 
-# Set up Bigtable client
-project_id = "cs-411-hw2 "  
+project_id = "cs-411-hw2"  
 instance_id = "ev-bigtable"
 table_id = "ev-population"
 
