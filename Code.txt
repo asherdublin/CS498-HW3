@@ -30,3 +30,88 @@ for _, row_data in df.iterrows():
     bt_row.commit()
 
 print("data loaded")
+
+import re
+from flask import Flask
+from google.cloud import bigtable
+
+app = Flask(__name__)
+project_id = 'cs-411-hw2'
+instance_id = 'ev-bigtable'
+table_id = 'ev-population'
+client = bigtable.Client(project=project_id, admin=True)
+instance = client.instance(instance_id)
+table = instance.table(table_id)
+
+@app.route('/rows')
+def get_total_rows():
+    count = 0
+    for row in table.read_rows():
+        count += 1
+    return str(count)
+
+@app.route('/Best-BMW')
+def best_bmw():
+    count = 0
+    for row in table.read_rows():
+        try:
+            make_value = row.cells['ev_info']['Make'][0].value.decode('utf-8').strip()
+            if make_value != "BMW":
+                continue
+
+            electric_range_str = row.cells['ev_info']['Electric Range'][0].value.decode('utf-8').strip()
+            electric_range = extract_numeric(electric_range_str)
+            if electric_range is not None and electric_range > 100:
+                count += 1
+        except Exception:
+            continue
+    return str(count)
+@app.route('/tesla-owners')
+def tesla_owners():
+    count = 0
+    for row in table.read_rows():
+        try:
+            make_value = row.cells['ev_info']['Make'][0].value.decode('utf-8').strip()
+            city_value = row.cells['ev_info']['City'][0].value.decode('utf-8').strip()
+
+            if make_value == "TESLA" and city_value == "Seattle":
+                count += 1
+        except Exception:
+            continue
+    return str(count)
+
+@app.route('/update')
+def update_vehicle():
+    row_key = "257246118".encode('utf-8')
+    bt_row = table.direct_row(row_key)
+
+    bt_row.set_cell('ev_info', 'Electric Range', "200".encode('utf-8'))
+    bt_row.commit()
+    return '"Success"'
+@app.route('/delete')
+def delete_old_records():
+    rows_to_delete = []
+    for row in table.read_rows():
+        try:
+
+            model_year_str = row.cells['ev_info']['Model Year'][0].value.decode('utf-8').strip()
+            model_year = int(model_year_str)
+            if model_year < 2014:
+                rows_to_delete.append(row.row_key)
+        except Exception:
+            continue
+
+
+    for row_key in rows_to_delete:
+        dr = table.direct_row(row_key)
+        dr.delete()
+        dr.commit()
+
+    remaining_count = 0
+    for row in table.read_rows():
+        remaining_count += 1
+    return str(remaining_count)
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+
